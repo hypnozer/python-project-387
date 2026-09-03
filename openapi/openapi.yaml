@@ -1,0 +1,490 @@
+openapi: 3.1.0
+info:
+  title: Calendar Booking API
+  version: 1.0.0
+  summary: Contract for a single-owner calendar and its public booking flow
+  description: The API has one predefined owner and no registration or authentication. Owner routes serve the administrative UI; event type, slot, and booking creation routes serve guests.
+tags:
+  - name: Owner
+  - name: Event types
+  - name: Bookings
+paths:
+  /bookings:
+    post:
+      operationId: BookingOperations_createBooking
+      summary: Book an advertised free slot as a guest
+      description: The start must exactly match a slot currently offered for the chosen event type. The server derives endsAt, validates the rolling window, and checks interval overlap atomically. A conflict exists when newStart < existingEnd and existingStart < newEnd, across all event types.
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          headers:
+            location:
+              required: true
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      tags:
+        - Bookings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookingRequest'
+  /event-types:
+    get:
+      operationId: EventTypeOperations_listEventTypes
+      summary: List event types for the public booking page
+      description: Returns all event types ordered by title ascending. An empty result is returned as [].
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventType'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      tags:
+        - Event types
+    post:
+      operationId: EventTypeOperations_createEventType
+      summary: Create an event type as the calendar owner
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          headers:
+            location:
+              required: true
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventType'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      tags:
+        - Event types
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEventTypeRequest'
+  /event-types/{eventTypeId}:
+    get:
+      operationId: EventTypeOperations_getEventType
+      summary: Get one event type for the public booking page
+      parameters:
+        - name: eventTypeId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/EventTypeId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventType'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      tags:
+        - Event types
+  /event-types/{eventTypeId}/slots:
+    get:
+      operationId: EventTypeOperations_listAvailableSlots
+      summary: List free slots for an event type in the rolling 14-day window
+      description: 'Returns only slots that fit fully inside predefined owner availability, start in the future, and do not overlap any booking regardless of event type. Slots are ordered by startsAt ascending. Adjacent meetings are allowed. An empty result is returned as slots: [].'
+      parameters:
+        - name: eventTypeId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/EventTypeId'
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlotWindow'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      tags:
+        - Event types
+  /owner:
+    get:
+      operationId: OwnerOperations_getOwner
+      summary: Get the predefined owner profile
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Owner'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      tags:
+        - Owner
+  /owner/bookings:
+    get:
+      operationId: OwnerBookingOperations_listUpcomingBookings
+      summary: List all upcoming bookings across every event type
+      description: Returns bookings whose startsAt is in the future, ordered by startsAt ascending. An empty result is returned as [].
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Booking'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+      tags:
+        - Owner
+components:
+  schemas:
+    ApiError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+        message:
+          type: string
+      description: Machine-readable API error with a human-readable explanation.
+    AvailabilityInterval:
+      type: object
+      required:
+        - startsAt
+        - endsAt
+      properties:
+        startsAt:
+          type: string
+          format: time
+        endsAt:
+          type: string
+          format: time
+      description: A local-time interval in the owner's predefined weekly schedule. startsAt must be earlier than endsAt.
+    Booking:
+      type: object
+      required:
+        - id
+        - eventTypeId
+        - eventTypeTitle
+        - durationMinutes
+        - guest
+        - startsAt
+        - endsAt
+        - createdAt
+      properties:
+        id:
+          $ref: '#/components/schemas/ResourceId'
+        eventTypeId:
+          $ref: '#/components/schemas/EventTypeId'
+        eventTypeTitle:
+          type: string
+        durationMinutes:
+          type: integer
+          format: int32
+        guest:
+          $ref: '#/components/schemas/Guest'
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+      description: A confirmed meeting. endsAt is derived from the event type duration by the server.
+    CreateBookingRequest:
+      type: object
+      required:
+        - eventTypeId
+        - startsAt
+        - guest
+      properties:
+        eventTypeId:
+          $ref: '#/components/schemas/EventTypeId'
+        startsAt:
+          type: string
+          format: date-time
+        guest:
+          $ref: '#/components/schemas/Guest'
+      description: Guest request for a currently advertised slot. The server derives the end time and atomically rechecks availability.
+    CreateEventTypeRequest:
+      type: object
+      required:
+        - id
+        - title
+        - description
+        - durationMinutes
+      properties:
+        id:
+          $ref: '#/components/schemas/EventTypeId'
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        durationMinutes:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1440
+      description: Payload used by the owner to create an event type.
+    DayOfWeek:
+      type: string
+      enum:
+        - monday
+        - tuesday
+        - wednesday
+        - thursday
+        - friday
+        - saturday
+        - sunday
+    ErrorCode:
+      type: string
+      enum:
+        - INVALID_REQUEST
+        - EVENT_TYPE_NOT_FOUND
+        - EVENT_TYPE_ID_EXISTS
+        - SLOT_OUTSIDE_BOOKING_WINDOW
+        - SLOT_NOT_OFFERED
+        - SLOT_UNAVAILABLE
+        - INTERNAL_ERROR
+    EventType:
+      type: object
+      required:
+        - id
+        - title
+        - description
+        - durationMinutes
+      properties:
+        id:
+          $ref: '#/components/schemas/EventTypeId'
+        title:
+          type: string
+          minLength: 1
+          maxLength: 120
+        description:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        durationMinutes:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 1440
+      description: A kind of meeting guests can book.
+    EventTypeId:
+      type: string
+      minLength: 1
+      maxLength: 64
+      pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+      description: Stable identifier supplied by the owner. It is a lowercase URL-safe slug.
+    Guest:
+      type: object
+      required:
+        - name
+        - email
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        email:
+          type: string
+          maxLength: 254
+          format: email
+      description: Contact data supplied by a guest without creating an account.
+    IanaTimeZone:
+      type: string
+      minLength: 1
+      description: An IANA time-zone identifier such as Europe/Moscow.
+    Owner:
+      type: object
+      required:
+        - id
+        - name
+        - timeZone
+        - weeklyAvailability
+      properties:
+        id:
+          $ref: '#/components/schemas/ResourceId'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        timeZone:
+          $ref: '#/components/schemas/IanaTimeZone'
+        weeklyAvailability:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeeklyAvailability'
+      description: The application's single predefined calendar owner.
+    ResourceId:
+      type: string
+      format: uuid
+      description: Opaque server-generated identifier.
+    Slot:
+      type: object
+      required:
+        - eventTypeId
+        - startsAt
+        - endsAt
+      properties:
+        eventTypeId:
+          $ref: '#/components/schemas/EventTypeId'
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+      description: A currently free interval computed for one event type. Timestamps include a UTC offset.
+    SlotWindow:
+      type: object
+      required:
+        - startsOn
+        - endsOn
+        - ownerTimeZone
+        - slots
+      properties:
+        startsOn:
+          type: string
+          format: date
+        endsOn:
+          type: string
+          format: date
+        ownerTimeZone:
+          $ref: '#/components/schemas/IanaTimeZone'
+        slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/Slot'
+      description: A rolling 14-calendar-date availability window in the owner's time zone. startsOn is today and endsOn is the thirteenth following date.
+    WeeklyAvailability:
+      type: object
+      required:
+        - dayOfWeek
+        - intervals
+      properties:
+        dayOfWeek:
+          $ref: '#/components/schemas/DayOfWeek'
+        intervals:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailabilityInterval'
+      description: Predefined working intervals for one weekday. Intervals for the same day do not overlap.
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+    variables: {}
