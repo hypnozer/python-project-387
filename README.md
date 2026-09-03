@@ -2,7 +2,6 @@
 
 [![hexlet-check](https://github.com/hypnozer/python-project-387/actions/workflows/hexlet-check.yml/badge.svg)](https://github.com/hypnozer/python-project-387/actions)
 [![End-to-end tests](https://github.com/hypnozer/python-project-387/actions/workflows/e2e.yml/badge.svg)](https://github.com/hypnozer/python-project-387/actions/workflows/e2e.yml)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=hypnozer_python-project-387&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=hypnozer_python-project-387)
 
 Продолжение учебного проекта Хекслета «Календарь звонков». Это сервис
 бронирования слотов по мотивам Cal.com: владелец создаёт форматы встреч,
